@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ResumeAI | AI Career Advisor</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
+</head>
+
+<body>
+
+<header class="navbar">
+
+    <div class="logo">
+        ✦ ResumeAI
+    </div>
+
+    <div class="nav-badge">
+        AI Resume Agent
+    </div>
+
+</header>
+
+
+<main class="container">
+
+
+    <!-- HERO -->
+
+    <section class="hero">
+
+        <p class="eyebrow">
+            RESUME × RAG × AI AGENT
+        </p>
+
+        <h1>
+            Build a resume<br>
+            that fits the role.
+        </h1>
+
+        <p class="hero-description">
+
+            Analyze your resume against job requirements,
+            discover missing skills and get an actionable
+            interview and learning roadmap.
+
+        </p>
+
+    </section>
+
+
+    <!-- INPUT AREA -->
+
+    <section class="input-grid">
+
+
+        <!-- RESUME -->
+
+        <div class="card">
+
+            <div class="card-number">
+                01
+            </div>
+
+            <h2>
+                Your Resume
+            </h2>
+
+            <p class="muted">
+
+                Upload your resume PDF or paste
+                the resume content below.
+
+            </p>
+
+            <input
+                id="resumeFile"
+                type="file"
+                accept=".pdf"
+            >
+
+            <textarea
+                id="resumeText"
+                placeholder="Paste your resume text here..."
+            ></textarea>
+
+        </div>
+
+
+        <!-- ROLE -->
+
+        <div class="card">
+
+            <div class="card-number">
+                02
+            </div>
+
+            <h2>
+                Target Role
+            </h2>
+
+            <label>
+                Job Role
+            </label>
+
+            <input
+                id="role"
+                value="AI / ML Engineer"
+                placeholder="e.g. AI Engineer"
+            >
+
+            <label>
+                Job Description
+            </label>
+
+            <textarea
+                id="jobText"
+                placeholder="Paste a job description here (optional)..."
+            ></textarea>
+
+        </div>
+
+
+        <!-- RAG -->
+
+        <div class="card full">
+
+            <div class="card-number">
+                03
+            </div>
+
+            <h2>
+                Job Description Knowledge Base
+            </h2>
+
+            <p class="muted">
+
+                Upload job-description PDFs to create
+                a lightweight RAG knowledge base.
+
+            </p>
+
+            <div class="upload-area">
+
+                <input
+                    id="jobPdf"
+                    type="file"
+                    accept=".pdf"
+                >
+
+                <button
+                    id="uploadBtn"
+                    class="secondary-btn"
+                >
+                    + Add Job PDF
+                </button>
+
+                <span
+                    id="uploadStatus"
+                ></span>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ANALYZE -->
+
+    <button
+        id="analyzeBtn"
+        class="analyze-btn"
+    >
+
+        Analyze My Resume
+        <span>→</span>
+
+    </button>
+
+
+    <div
+        id="loading"
+        class="loading hidden"
+    >
+
+        <div class="spinner"></div>
+
+        <p>
+            Analyzing your resume...
+        </p>
+
+    </div>
+
+
+    <!-- RESULTS -->
+
+    <section
+        id="results"
+        class="results hidden"
+    >
+
+
+        <!-- SCORE -->
+
+        <div class="score-card">
+
+            <div>
+
+                <p class="eyebrow">
+                    RESUME ALIGNMENT
+                </p>
+
+                <h2 id="verdict">
+                    —
+                </h2>
+
+                <p
+                    id="advisor"
+                    class="muted"
+                >
+                    —
+                </p>
+
+            </div>
+
+            <div class="score-circle">
+
+                <span id="score">
+                    0
+                </span>
+
+                <small>
+                    /100
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <!-- SKILLS -->
+
+        <div class="result-grid">
+
+
+            <div class="card">
+
+                <h3>
+                    ✓ Matched Skills
+                </h3>
+
+                <div
+                    id="matched"
+                    class="chips"
+                ></div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>
+                    ! Missing Skills
+                </h3>
+
+                <div
+                    id="missing"
+                    class="chips"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- REVIEWER -->
+
+        <div class="card">
+
+            <p class="eyebrow">
+                AGENT 01
+            </p>
+
+            <h3>
+                Resume Reviewer
+            </h3>
+
+            <ul
+                id="reviewer"
+                class="result-list"
+            ></ul>
+
+        </div>
+
+
+        <!-- INTERVIEW -->
+
+        <div class="card">
+
+            <p class="eyebrow">
+                AGENT 02
+            </p>
+
+            <h3>
+                Interview Preparation Roadmap
+            </h3>
+
+            <ol
+                id="interview"
+                class="result-list"
+            ></ol>
+
+        </div>
+
+
+        <!-- LEARNING PLAN -->
+
+        <div class="card">
+
+            <p class="eyebrow">
+                STRETCH GOAL
+            </p>
+
+            <h3>
+                Personalized 3-Month Learning Plan
+            </h3>
+
+            <div
+                id="plan"
+                class="plan"
+            ></div>
+
+        </div>
+
+
+        <!-- RAG -->
+
+        <div class="card">
+
+            <p class="eyebrow">
+                RAG
+            </p>
+
+            <h3>
+                Retrieved Job Context
+            </h3>
+
+            <p class="muted">
+
+                These are the job-description chunks
+                used by the retrieval system.
+
+            </p>
+
+            <div
+                id="context"
+            ></div>
+
+        </div>
+
+
+    </section>
+
+</main>
+
+
+<footer>
+
+    ResumeAI · Prompt Engineering · RAG · AI Agents
+
+</footer>
+
+
+<script
+    src="/static/app.js"
+></script>
+
+</body>
+
+</html>
