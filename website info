@@ -1,0 +1,14 @@
+The website has:
+
+Resume PDF upload
+Resume text input
+Target job role
+Job-description PDF upload
+RAG retrieval using TF-IDF + cosine similarity
+Resume score
+Matched skills
+Missing skills
+Resume reviewer
+Career advisor
+Interview preparation roadmap
+Personalized 3-month learning plan
