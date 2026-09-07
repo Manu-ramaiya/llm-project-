@@ -1,0 +1,409 @@
+const $ = (id) =>
+    document.getElementById(id);
+
+
+// --------------------------------------------------
+// HTML ESCAPE
+// --------------------------------------------------
+
+function escapeHTML(value) {
+
+    return String(value)
+        .replace(/[&<>"']/g, function (char) {
+
+            const entities = {
+
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+
+            };
+
+            return entities[char];
+
+        });
+
+}
+
+
+// --------------------------------------------------
+// CREATE SKILL CHIPS
+// --------------------------------------------------
+
+function renderChips(
+    elementId,
+    values,
+    className = ""
+) {
+
+    const element = $(elementId);
+
+    if (!values || values.length === 0) {
+
+        element.innerHTML =
+            `<span class="muted">
+                None detected
+            </span>`;
+
+        return;
+
+    }
+
+    element.innerHTML =
+        values
+            .map(
+                skill =>
+                    `<span class="chip ${className}">
+                        ${escapeHTML(skill)}
+                    </span>`
+            )
+            .join("");
+
+}
+
+
+// --------------------------------------------------
+// UPLOAD JOB PDF
+// --------------------------------------------------
+
+$("uploadBtn").addEventListener(
+    "click",
+    async function () {
+
+        const file =
+            $("jobPdf").files[0];
+
+        if (!file) {
+
+            $("uploadStatus").textContent =
+                "Please select a PDF.";
+
+            return;
+
+        }
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "file",
+            file
+        );
+
+        $("uploadStatus").textContent =
+            "Uploading...";
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/upload-job-pdf",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "Upload failed."
+                );
+
+            }
+
+            $("uploadStatus").textContent =
+                `✓ ${data.filename} added`;
+
+        } catch (error) {
+
+            $("uploadStatus").textContent =
+                error.message;
+
+        }
+
+    }
+);
+
+
+// --------------------------------------------------
+// ANALYZE RESUME
+// --------------------------------------------------
+
+$("analyzeBtn").addEventListener(
+    "click",
+    async function () {
+
+        const resumeFile =
+            $("resumeFile").files[0];
+
+        const resumeText =
+            $("resumeText").value;
+
+        const role =
+            $("role").value;
+
+        const jobText =
+            $("jobText").value;
+
+
+        const formData =
+            new FormData();
+
+
+        if (resumeFile) {
+
+            formData.append(
+                "resume_file",
+                resumeFile
+            );
+
+        }
+
+
+        formData.append(
+            "resume_text",
+            resumeText
+        );
+
+
+        formData.append(
+            "target_role",
+            role
+        );
+
+
+        formData.append(
+            "job_text",
+            jobText
+        );
+
+
+        $("loading")
+            .classList
+            .remove("hidden");
+
+
+        $("results")
+            .classList
+            .add("hidden");
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/analyze",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "Analysis failed."
+                );
+
+            }
+
+
+            // SCORE
+
+            $("score").textContent =
+                data.resume_score;
+
+
+            $("verdict").textContent =
+                data.verdict;
+
+
+            $("advisor").textContent =
+                data.career_advisor;
+
+
+            // SKILLS
+
+            renderChips(
+                "matched",
+                data.matched_skills,
+                "good"
+            );
+
+
+            renderChips(
+                "missing",
+                data.missing_skills,
+                "missing"
+            );
+
+
+            // REVIEWER
+
+            $("reviewer").innerHTML =
+                data.reviewer
+                    .map(
+                        item =>
+                            `<li>
+                                ${escapeHTML(item)}
+                            </li>`
+                    )
+                    .join("");
+
+
+            // INTERVIEW
+
+            $("interview").innerHTML =
+                data.interview_roadmap
+                    .map(
+                        item =>
+                            `<li>
+                                ${escapeHTML(item)}
+                            </li>`
+                    )
+                    .join("");
+
+
+            // 3 MONTH PLAN
+
+            $("plan").innerHTML =
+                data.three_month_plan
+                    .map(
+                        month => `
+
+                        <div class="plan-item">
+
+                            <h4>
+                                ${escapeHTML(
+                                    month.title
+                                )}
+                            </h4>
+
+                            <ul>
+
+                                ${month.skills
+                                    .map(
+                                        skill =>
+                                            `<li>
+                                                ${escapeHTML(skill)}
+                                            </li>`
+                                    )
+                                    .join("")}
+
+                            </ul>
+
+                            <p>
+                                ${escapeHTML(
+                                    month.action
+                                )}
+                            </p>
+
+                        </div>
+
+                    `
+                    )
+                    .join("");
+
+
+            // RAG CONTEXT
+
+            if (
+                data.retrieved_context &&
+                data.retrieved_context.length
+            ) {
+
+                $("context").innerHTML =
+                    data.retrieved_context
+                        .map(
+                            item => `
+
+                            <div class="context-item">
+
+                                <strong>
+                                    ${escapeHTML(
+                                        item.source
+                                    )}
+                                </strong>
+
+                                <br>
+
+                                Similarity:
+                                ${item.score}
+
+                                <br><br>
+
+                                ${escapeHTML(
+                                    item.text
+                                )}
+
+                            </div>
+
+                        `
+                        )
+                        .join("");
+
+            } else {
+
+                $("context").innerHTML = `
+
+                    <p class="muted">
+
+                        No matching RAG context found.
+                        Upload a job-description PDF
+                        or paste a job description.
+
+                    </p>
+
+                `;
+
+            }
+
+
+            // SHOW RESULTS
+
+            $("results")
+                .classList
+                .remove("hidden");
+
+
+            window.scrollTo({
+
+                top:
+                    $("results")
+                        .offsetTop - 60,
+
+                behavior:
+                    "smooth"
+
+            });
+
+
+        } catch (error) {
+
+            alert(
+                error.message
+            );
+
+        } finally {
+
+            $("loading")
+                .classList
+                .add("hidden");
+
+        }
+
+    }
+);
