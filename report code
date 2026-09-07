@@ -1,0 +1,175 @@
+const fs = require("fs");
+const {
+  Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun,
+  Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle,
+  AlignmentType, LevelFormat, convertInchesToTwip
+} = require("docx");
+
+const PAGE_WIDTH = 12240, PAGE_HEIGHT = 15840; // US Letter
+
+function h1(text) {
+  return new Paragraph({ text, heading: HeadingLevel.HEADING_1, spacing: { before: 320, after: 160 } });
+}
+function h2(text) {
+  return new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 120 } });
+}
+function body(text, opts = {}) {
+  return new Paragraph({
+    children: [new TextRun({ text, ...opts })],
+    spacing: { after: 160 },
+  });
+}
+function bullet(text) {
+  return new Paragraph({
+    text,
+    numbering: { reference: "bullets", level: 0 },
+    spacing: { after: 80 },
+  });
+}
+function boldLabel(label, rest) {
+  return new Paragraph({
+    children: [
+      new TextRun({ text: label + " ", bold: true }),
+      new TextRun({ text: rest }),
+    ],
+    spacing: { after: 100 },
+  });
+}
+
+function simpleTable(headerRow, rows) {
+  const colCount = headerRow.length;
+  const colWidth = Math.floor(9360 / colCount); // ~6.5in usable width in DXA
+  const widths = new Array(colCount).fill(colWidth);
+
+  const makeRow = (cells, isHeader) => new TableRow({
+    children: cells.map((c, i) => new TableCell({
+      width: { size: widths[i], type: WidthType.DXA },
+      shading: isHeader ? { type: ShadingType.CLEAR, fill: "E6F1FB" } : undefined,
+      children: [new Paragraph({
+        children: [new TextRun({ text: String(c), bold: isHeader, size: 20 })],
+      })],
+    })),
+  });
+
+  return new Table({
+    columnWidths: widths,
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [makeRow(headerRow, true), ...rows.map(r => makeRow(r, false))],
+  });
+}
+
+const imageBuffer = fs.readFileSync("architecture_diagram.png");
+
+const doc = new Document({
+  numbering: {
+    config: [{
+      reference: "bullets",
+      levels: [{ level: 0, format: LevelFormat.BULLET, text: "\u2022", alignment: AlignmentType.LEFT,
+        style: { paragraph: { indent: { left: convertInchesToTwip(0.3), hanging: convertInchesToTwip(0.18) } } } }],
+    }],
+  },
+  sections: [{
+    properties: { page: { size: { width: PAGE_WIDTH, height: PAGE_HEIGHT } } },
+    children: [
+      new Paragraph({
+        text: "AI Resume & Career Advisor",
+        heading: HeadingLevel.TITLE,
+        spacing: { after: 80 },
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: "Project Report", italics: true, size: 26, color: "5F5E5A" })],
+        spacing: { after: 320 },
+      }),
+
+      h1("1. Problem"),
+      body(
+        "Students applying for internships and entry-level roles routinely reuse a single generic resume " +
+        "across many applications. This produces two recurring problems: the resume is not tailored to the " +
+        "specific requirements listed in a given job description, and the student has no objective, timely " +
+        "feedback on which skills to prioritize before an interview. Career center staff and generic resume " +
+        "templates cannot scale to give every applicant role-specific feedback."
+      ),
+      body(
+        "The AI Resume & Career Advisor addresses this by using a target job description as the ground truth " +
+        "for evaluation. Instead of generic resume advice, the system grades the resume against the specific " +
+        "requirements of the role the student is applying for, identifies concrete skill gaps, and turns those " +
+        "gaps into an actionable interview-preparation plan."
+      ),
+
+      h1("2. Architecture"),
+      body("The system follows a simple linear pipeline: the user provides a resume and one or more job " +
+        "description documents; a retrieval-augmented generation (RAG) layer pulls the job description content " +
+        "most relevant to the resume; two LLM agents then consume that context to produce the final response."),
+      new Paragraph({
+        children: [new ImageRun({ data: imageBuffer, type: "png", transformation: { width: 340, height: 453 } })],
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 120, after: 200 },
+      }),
+      h2("2.1 Components"),
+      simpleTable(
+        ["Component", "Responsibility"],
+        [
+          ["PDF ingestion", "Extracts raw text from the uploaded resume and job description PDFs (pdfplumber)."],
+          ["RAG retrieval", "Chunks job description text (220-word sliding window, 40-word overlap) and indexes it with TF-IDF; retrieves the top-k chunks most similar to the resume text."],
+          ["Resume Reviewer agent", "Compares resume text against retrieved job description context; returns a 0-100 fit score, strong matches, and missing/weak skills as structured JSON."],
+          ["Career Advisor agent", "Consumes the reviewer's structured output; produces an interview-prep roadmap and, optionally, a 3-month personalized learning plan."],
+          ["UI", "Streamlit app that collects uploads, displays retrieved context, and renders both agents' output."],
+        ]
+      ),
+      h2("2.2 Why TF-IDF instead of neural embeddings"),
+      body(
+        "The RAG layer uses TF-IDF and cosine similarity rather than a neural embedding model. For the small " +
+        "corpora this app handles (a handful of job description documents per session), TF-IDF is fast, requires " +
+        "no model downloads or GPU, and is fully explainable — every retrieved chunk's relevance score is a " +
+        "transparent keyword-overlap computation rather than an opaque vector distance. The retrieval step is " +
+        "isolated behind a single interface (JobDescriptionRAG.retrieve), so it can be swapped for a neural " +
+        "embedder without changing the rest of the pipeline."
+      ),
+
+      h1("3. Prompt Design"),
+      body("Two agents, two prompts, each constrained to return structured JSON so the UI can render results " +
+        "reliably without additional parsing logic."),
+      h2("3.1 Resume Reviewer"),
+      body("System prompt frames the model as an experienced technical recruiter and explicitly forbids " +
+        "inventing claims not supported by the resume text. The user turn supplies the resume, the RAG-retrieved " +
+        "job description context, and the target role title. The model must return: a 0-100 score, a short " +
+        "rationale, a list of strong matches, a list of missing or weak skills, and specific actionable feedback."),
+      h2("3.2 Career Advisor"),
+      body("System prompt frames the model as a supportive but honest advisor and explicitly asks for specificity " +
+        "(\"avoid generic advice like 'practice more' without saying what to practice and how\"). The user turn " +
+        "passes the reviewer's structured JSON output directly as context, plus a flag for whether to include the " +
+        "stretch-goal 3-month learning plan. The model returns an interview roadmap (topic, why it matters, sample " +
+        "questions, prep tips) and, if requested, a month-by-month learning plan with milestones."),
+      h2("3.3 Design decisions"),
+      bullet("Both prompts force JSON-only output with no markdown fences, which the client parses defensively (agents.py:_extract_json) to tolerate minor formatting drift."),
+      bullet("Chaining the two agents rather than using one long prompt keeps each prompt focused on one task and makes the reviewer's structured score reusable outside this app."),
+      bullet("The reviewer prompt explicitly discourages hallucinated claims, since an inflated score or fabricated strength would undermine the tool's usefulness."),
+
+      h1("4. Evaluation"),
+      body("Because this is a small course project without a large labeled dataset, evaluation combines " +
+        "component-level checks with qualitative end-to-end review:"),
+      bullet("RAG retrieval was unit-tested against synthetic resume/job-description pairs to confirm the top-ranked chunk is the one containing the actually relevant requirement."),
+      bullet("JSON-parsing robustness was tested against outputs wrapped in markdown fences and outputs with extra surrounding prose, to ensure the pipeline does not crash on minor formatting drift."),
+      bullet("End-to-end runs were reviewed manually: does the score direction make sense (a resume missing key requirements scores lower than one that matches closely), are the listed missing skills actually absent from the resume, and is interview-roadmap advice specific rather than generic."),
+      bullet("Planned follow-up: a small rubric-scored set of resume/job-description pairs, graded independently by a human, compared against the tool's score and skill-gap list to measure agreement."),
+
+      h1("5. Challenges"),
+      bullet("Keeping the LLM's output in strictly valid, parseable JSON required explicit formatting instructions and a defensive parser, since models occasionally wrap answers in markdown or add commentary."),
+      bullet("Chunking job descriptions naively can split a single requirement across two chunks; a 40-word overlap mitigates this but does not eliminate it for long bullet lists."),
+      bullet("Grounding the reviewer's score against the retrieved context only (not the full job description) trades some completeness for retrieval speed and prompt-length control; a poorly worded resume can retrieve less relevant context."),
+      bullet("Avoiding hallucinated resume strengths required explicit prompt constraints, since LLMs tend toward generous, encouraging feedback by default."),
+
+      h1("6. Future Enhancements"),
+      bullet("Swap TF-IDF for a neural embedding model to improve retrieval quality on job descriptions that use different wording than the resume for the same skill (e.g. \"React\" vs. \"front-end JavaScript framework\")."),
+      bullet("Add a resume-rewriting agent that proposes specific bullet-point edits, not just a list of gaps."),
+      bullet("Persist review history so a student can track score improvement across resume revisions."),
+      bullet("Support multiple resume formats (DOCX, plain text) in addition to PDF."),
+      bullet("Expand the stretch-goal learning plan into a fully agentic flow that also searches for and recommends specific current courses or projects for each identified skill gap."),
+    ],
+  }],
+});
+
+Packer.toBuffer(doc).then((buf) => {
+  fs.writeFileSync("AI_Resume_Career_Advisor_Report.docx", buf);
+  console.log("wrote AI_Resume_Career_Advisor_Report.docx");
+});
