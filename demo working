@@ -1,0 +1,27 @@
+Upload Resume
+      ↓
+Select "AI / ML Engineer"
+      ↓
+Upload Job Description PDF
+      ↓
+RAG extracts + retrieves requirements
+      ↓
+Resume Analyzer
+      ↓
+Resume Reviewer Agent
+      ↓
+Career Advisor Agent
+      ↓
+┌───────────────────────────┐
+│ Resume Score: 72/100      │
+│                           │
+│ Matched Skills            │
+│ Python • RAG • SQL • Git  │
+│                           │
+│ Missing Skills            │
+│ Docker • AWS • Kubernetes │
+│                           │
+│ Interview Roadmap         │
+│                           │
+│ 3-Month Learning Plan     │
+└───────────────────────────┘
