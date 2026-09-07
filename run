@@ -1,0 +1,25 @@
+💻 Run it locally
+
+After downloading/extracting:
+
+cd resume_ai_agent
+
+Create virtual environment:
+
+python -m venv .venv
+
+Windows:
+
+.venv\Scripts\activate
+
+Install:
+
+pip install -r requirements.txt
+
+Run:
+
+uvicorn app:app --reload
+
+Then open:
+
+http://127.0.0.1:8000
